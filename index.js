@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 require("dotenv").config();
 const fetch = require("node-fetch");
 const qs = require("query-string");
@@ -29,7 +31,7 @@ const emojisFor = (labels, isCR = false) => {
   return ":crickets:";
 };
 
-const formatReviews = ({cr, qa, pr})   => {
+const formatReviews = ({ cr, qa, pr }) => {
   let reviews = `(CR:${emojisFor(cr, true)})`;
   if (cr.includes("approved")) {
     reviews += ` (QA:${emojisFor(qa)})`;
@@ -69,7 +71,7 @@ const fetchPatchsets = async () => {
 
   const text = await response.text();
   const [_, body] = text.split("\n", 2);
-  return JSON.parse(body)
+  return JSON.parse(body);
 };
 
 const transformPatchset = (ps) => ({
@@ -86,7 +88,9 @@ const transformPatchset = (ps) => ({
 const run = async () => {
   const patchsets = await fetchPatchsets();
   const rows = patchsets.map(transformPatchset).map(formatPatchset);
-  const message = [`${rows.length} outstanding reviews:`, ...rows].sort().join("\n");
+  const message = [`${rows.length} outstanding reviews:`, ...rows]
+    .sort()
+    .join("\n");
   console.log(message);
   sendMessage(message);
 };
