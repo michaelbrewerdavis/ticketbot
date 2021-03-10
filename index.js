@@ -11,8 +11,6 @@ const timeAgo = new TimeAgo();
 
 const {
   GERRIT_ENDPOINT,
-  GERRIT_USER,
-  GERRIT_PASSWORD,
   SLACK_CHANNEL,
   SLACK_LAMBDA_ENDPOINT,
 } = process.env;
@@ -32,7 +30,6 @@ const emojisFor = (labels, isCR = false) => {
 };
 
 const formatReviews = ({ cr, qa, pr }) => {
-  console.log({cr, qa, pr})
   let reviews = `(CR:${emojisFor(cr, true)})`;
   if (cr.includes("2")) {
     reviews += ` (QA:${emojisFor(qa)})`;
@@ -57,8 +54,8 @@ const formatPatchset = ({
 
 const parsePatchsets = async () => {
   const raw = await getStdin()
-  const rows = raw.toString().split("\n").filter(line => line).map(line => console.log('line', line) || JSON.parse(line)).filter(line => !!line.id);
-  console.log(rows)
+  console.log('input', raw)
+  const rows = raw.toString().split("\n").filter(line => line).map(line => JSON.parse(line)).filter(line => !!line.id);
   return rows
 };
 
