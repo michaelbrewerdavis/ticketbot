@@ -64,7 +64,7 @@ const parsePatchsets = async () => {
 
 const transformPatchset = (ps) => ({
   ...ps,
-  owner: ps.owner?.name,
+  owner: ps.owner.name,
   lastUpdate: timeAgo.format(new Date(ps.lastUpdated)),
   reviews: {
     cr: ps.currentPatchSet.approvals.filter(vote => vote.type === 'Code-Review').map(vote => vote.value),
