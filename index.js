@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 require("dotenv").config();
-const fetch = require("node-fetch");
-const qs = require("query-string");
+
+const getStdin = require('get-stdin')
 const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
 const TimeAgo = require("javascript-time-ago");
 const en = require("javascript-time-ago/locale/en");
@@ -19,31 +19,32 @@ const {
 const sqs = new SQSClient({ region: "us-east-1" });
 
 const emojisFor = (labels, isCR = false) => {
-  if (labels.includes("rejected")) {
-    return isCR ? ":minustwo:" : "minusone";
-  } else if (labels.includes("disliked")) {
+  if (labels.includes("-2")) {
+    return ":minustwo:";
+  } else if (labels.includes("-1")) {
     return ":minusone:";
-  } else if (labels.includes("approved")) {
-    return isCR ? ":plus2:" : ":+1:";
-  } else if (labels.includes("recommended")) {
-    return ":+1:";
+  } else if (labels.includes("2")) {
+    return ":plus2:";
+  } else if (labels.includes("1")) {
+    return  ":+1:";
   }
   return ":crickets:";
 };
 
 const formatReviews = ({ cr, qa, pr }) => {
+  console.log({cr, qa, pr})
   let reviews = `(CR:${emojisFor(cr, true)})`;
-  if (cr.includes("approved")) {
+  if (cr.includes("2")) {
     reviews += ` (QA:${emojisFor(qa)})`;
   }
-  if (qa.includes("approved")) {
+  if (qa.includes("1")) {
     reviews += ` (PR:${emojisFor(pr)})`;
   }
   return reviews;
 };
 
 const formatPatchset = ({
-  _number: number,
+  number,
   project,
   owner,
   subject,
@@ -54,39 +55,26 @@ const formatPatchset = ({
   )}`;
 };
 
-const fetchPatchsets = async () => {
-  const headers = new fetch.Headers({
-    Authorization: `Basic ${Buffer.from(
-      `${GERRIT_USER}:${GERRIT_PASSWORD}`
-    ).toString("base64")}`,
-  });
-  const query = qs.stringify({
-    q:
-      "status:open ownerin:outcomes reviewerin:outcomes label:verified=+1 -label:code-review=-2 -label:lint-review=-2 -age:3w",
-    o: ["LABELS", "CURRENT_COMMIT", "DETAILED_ACCOUNTS"],
-  });
-  const response = await fetch(`${GERRIT_ENDPOINT}/a/changes/?${query}`, {
-    headers,
-  });
-
-  const text = await response.text();
-  const [_, body] = text.split("\n", 2);
-  return JSON.parse(body);
+const parsePatchsets = async () => {
+  const raw = await getStdin()
+  const rows = raw.toString().split("\n").filter(line => line).map(line => console.log('line', line) || JSON.parse(line)).filter(line => !!line.id);
+  console.log(rows)
+  return rows
 };
 
 const transformPatchset = (ps) => ({
   ...ps,
   owner: ps.owner?.name,
-  lastUpdate: timeAgo.format(new Date(ps.updated + "Z")),
+  lastUpdate: timeAgo.format(new Date(ps.lastUpdated)),
   reviews: {
-    cr: Object.keys(ps.labels["Code-Review"] || {}),
-    qa: Object.keys(ps.labels["QA-Review"] || {}),
-    pr: Object.keys(ps.labels["Product-Review"] || {}),
+    cr: ps.currentPatchSet.approvals.filter(vote => vote.type === 'Code-Review').map(vote => vote.value),
+    qa: ps.currentPatchSet.approvals.filter(vote => vote.type === 'QA-Review').map(vote => vote.value),
+    pr: ps.currentPatchSet.approvals.filter(vote => vote.type === 'Product-Review').map(vote => vote.value),
   },
 });
 
 const run = async () => {
-  const patchsets = await fetchPatchsets();
+  const patchsets = await parsePatchsets();
   const rows = patchsets.map(transformPatchset).map(formatPatchset);
   const message = [`${rows.length} outstanding reviews:`, ...rows]
     .sort()
