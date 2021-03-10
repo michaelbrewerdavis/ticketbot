@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {
-    "run": "node index.js"
+  "bin": {
+    "ticketbot": "node index.js"
   },
-  "author": "",
+  "author": "mbd",
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-sqs": "^3.8.0",
