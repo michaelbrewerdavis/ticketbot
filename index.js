@@ -2,19 +2,13 @@
 
 require("dotenv").config();
 
-const getStdin = require('get-stdin')
-const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
+const getStdin = require("get-stdin");
 const TimeAgo = require("javascript-time-ago");
 const en = require("javascript-time-ago/locale/en");
 TimeAgo.addDefaultLocale(en);
 const timeAgo = new TimeAgo();
 
-const {
-  GERRIT_ENDPOINT,
-  SLACK_CHANNEL,
-  SLACK_LAMBDA_ENDPOINT,
-} = process.env;
-const sqs = new SQSClient({ region: "us-east-1" });
+const { GERRIT_ENDPOINT } = process.env;
 
 const emojisFor = (labels, isCR = false) => {
   if (labels.includes("-2")) {
@@ -24,7 +18,7 @@ const emojisFor = (labels, isCR = false) => {
   } else if (labels.includes("2")) {
     return ":plus2:";
   } else if (labels.includes("1")) {
-    return  ":+1:";
+    return ":+1:";
   }
   return ":crickets:";
 };
@@ -46,27 +40,38 @@ const formatPatchset = ({
   owner,
   subject,
   reviews,
+  lastUpdate,
 }) => {
   return `<${GERRIT_ENDPOINT}/c/${number}/|g/${number}> - [${project}] - [${owner}] - _${subject}_ - ${formatReviews(
     reviews
-  )}`;
+  )} - ${lastUpdate}`;
 };
 
 const parsePatchsets = async () => {
-  const raw = await getStdin()
-  console.log('input', raw)
-  const rows = raw.toString().split("\n").filter(line => line).map(line => JSON.parse(line)).filter(line => !!line.id);
-  return rows
+  const raw = await getStdin();
+  const rows = raw
+    .toString()
+    .split("\n")
+    .filter((line) => line)
+    .map((line) => JSON.parse(line))
+    .filter((line) => !!line.id);
+  return rows;
 };
 
 const transformPatchset = (ps) => ({
   ...ps,
   owner: ps.owner.name,
-  lastUpdate: timeAgo.format(new Date(ps.lastUpdated)),
+  lastUpdate: timeAgo.format(new Date(ps.lastUpdated * 1000)),
   reviews: {
-    cr: ps.currentPatchSet.approvals.filter(vote => vote.type === 'Code-Review').map(vote => vote.value),
-    qa: ps.currentPatchSet.approvals.filter(vote => vote.type === 'QA-Review').map(vote => vote.value),
-    pr: ps.currentPatchSet.approvals.filter(vote => vote.type === 'Product-Review').map(vote => vote.value),
+    cr: ps.currentPatchSet.approvals
+      .filter((vote) => vote.type === "Code-Review")
+      .map((vote) => vote.value),
+    qa: ps.currentPatchSet.approvals
+      .filter((vote) => vote.type === "QA-Review")
+      .map((vote) => vote.value),
+    pr: ps.currentPatchSet.approvals
+      .filter((vote) => vote.type === "Product-Review")
+      .map((vote) => vote.value),
   },
 });
 
@@ -77,19 +82,5 @@ const run = async () => {
     .sort()
     .join("\n");
   console.log(message);
-  sendMessage(message);
 };
 run();
-
-const sendMessage = async (text) => {
-  const message = JSON.stringify({
-    channel: SLACK_CHANNEL,
-    username: "TicketBot",
-    text,
-  });
-  const params = {
-    MessageBody: message,
-    QueueUrl: SLACK_LAMBDA_ENDPOINT,
-  };
-  return sqs.send(new SendMessageCommand(params));
-};

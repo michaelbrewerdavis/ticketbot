@@ -9,7 +9,6 @@
   "author": "mbd",
   "license": "ISC",
   "dependencies": {
-    "@aws-sdk/client-sqs": "^3.8.0",
     "dotenv": "^8.2.0",
     "get-stdin": "^8.0.0",
     "javascript-time-ago": "^2.3.4"
