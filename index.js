@@ -75,12 +75,46 @@ const transformPatchset = (ps) => ({
   },
 });
 
+const partitionPatchsets = patchsets => {
+  const partitioned = {}
+  patchsets.forEach(ps => {
+    let category
+    if (ps.reviews.cr.includes('-1') || ps.reviews.qa.includes('-1')) {
+      category = 'revision'
+    } else if (!ps.reviews.cr.includes('2')) {
+      category = 'cr'
+    } else if (!ps.reviews.qa.includes('1')) {
+      category = 'qa'
+    } else {
+      category = 'revision'
+    }
+    partitioned[category] = partitioned[category] || []
+    partitioned[category].push(ps)
+  })
+  return partitioned
+}
+
+const labelTexts = {
+  revision: ['Needs Revision'],
+  pr: ['Needs PR/Merge'],
+  cr: ['Needs Code Review'],
+  qa: ['Needs QA']
+}
+
+const makeBlock = text => (
+  {type: 'section', text: {type: 'mrkdwn', text }}
+)
+
 const run = async () => {
-  const patchsets = await parsePatchsets();
-  const rows = patchsets.map(transformPatchset).map(formatPatchset);
-  const message = [`${rows.length} outstanding reviews:`, ...rows]
-    .sort()
-    .join("\n");
-  console.log(message);
+  const patchsets = (await parsePatchsets()).map(transformPatchset);
+  const groups = partitionPatchsets(patchsets)
+  const text = `**${patchsets.length} outstanding reviews:**`
+  const blocks = [makeBlock(text)]
+  Object.keys(labelTexts).map(key => {
+    if (groups[key]) {
+      blocks.push(makeBlock([`_${labelTexts[key]}_`, groups[key].map(formatPatchset).sort()].join("\n")))
+    }
+  })
+  console.log(JSON.stringify({text, blocks}, null, ' '));
 };
 run();
