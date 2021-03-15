@@ -104,10 +104,10 @@ const labelTexts = {
 const run = async () => {
   const patchsets = (await parsePatchsets()).map(transformPatchset);
   const groups = partitionPatchsets(patchsets)
-  let message = `**${patchsets.length} outstanding reviews:**`
+  let message = `*${patchsets.length} outstanding reviews:*`
   Object.keys(labelTexts).forEach(key => {
     if (groups[key]) {
-      message += "\n" + [`_${labelTexts[key]}_`, groups[key].map(formatPatchset).sort()].join("\n")
+      message += "\n" + [`_${labelTexts[key]}_`, ...groups[key].map(formatPatchset).sort()].join("\n")
     }
   })
 
