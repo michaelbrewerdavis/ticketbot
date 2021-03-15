@@ -101,20 +101,16 @@ const labelTexts = {
   qa: ['Needs QA']
 }
 
-const makeBlock = text => (
-  {type: 'section', text: {type: 'mrkdwn', text }}
-)
-
 const run = async () => {
   const patchsets = (await parsePatchsets()).map(transformPatchset);
   const groups = partitionPatchsets(patchsets)
-  const text = `**${patchsets.length} outstanding reviews:**`
-  const blocks = [makeBlock(text)]
-  Object.keys(labelTexts).map(key => {
+  let message = `**${patchsets.length} outstanding reviews:**`
+  Object.keys(labelTexts).forEach(key => {
     if (groups[key]) {
-      blocks.push(makeBlock([`_${labelTexts[key]}_`, groups[key].map(formatPatchset).sort()].join("\n")))
+      message += "\n" + [`_${labelTexts[key]}_`, groups[key].map(formatPatchset).sort()].join("\n")
     }
   })
-  console.log(JSON.stringify({text, blocks}, null, ' '));
+
+  console.log(message);
 };
 run();
